@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Currency {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  symbol      String
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vaults           Vault[]
+  transactions     Transaction[]
+  baseTransactions Transaction[] @relation("BaseCurrency")
+  debts            Debt[]
+}
+
+model Vault {
+  id              String   @id @default(cuid())
+  currencyId      String
+  balance         Float    @default(0)
+  openingBalance  Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  currency    Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
+  @@unique([currencyId])
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  name        String
+  type        AccountType @default(PRIVATE)
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  transactions Transaction[]
+  debts       Debt[]
+}
+
+enum AccountType { PRIVATE PUBLIC }
+
+model Transaction {
+  id              String   @id @default(cuid())
+  accountId       String
+  currencyId      String
+  baseCurrencyId  String?
+  type            TransactionType
+  paymentType     PaymentType @default(CASH)
+  amount          Float
+  conversionFactor Float   @default(1)
+  conversionMethod ConversionMethod @default(MULTIPLY)
+  feesType        FeesType @default(FIXED)
+  feesAmount      Float    @default(0)
+  feesDirection   FeesDirection @default(INCOME)
+  finalBalance    Float
+  description     String?
+  date            DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  currency        Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
+  baseCurrency    Currency? @relation(fields: [baseCurrencyId], references: [id], onDelete: SetNull, name: "BaseCurrency")
+}
+
+enum PaymentType { CASH DEFERRED }
+enum TransactionType { INCOME EXPENSE }
+enum ConversionMethod { MULTIPLY DIVIDE }
+enum FeesType { FIXED PERCENTAGE PER_THOUSAND }
+enum FeesDirection { INCOME EXPENSE }
+
+model Debt {
+  id              String   @id @default(cuid())
+  accountId       String
+  currencyId      String
+  amount          Float
+  conversionFactor Float   @default(1)
+  conversionMethod ConversionMethod @default(MULTIPLY)
+  finalBalance    Float
+  description     String?
+  isPaid          Boolean  @default(false)
+  paidAt          DateTime?
+  date            DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  currency        Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
